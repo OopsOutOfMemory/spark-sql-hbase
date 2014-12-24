@@ -23,6 +23,17 @@ import scala.collection.immutable.HashMap
 package object hbase {
 
   /**
+   *  CREATE TEMPORARY TABLE hbaseTable
+      USING com.shengli.spark.hbase
+      OPTIONS (
+        zookeeperAddress 'localhost:2181',
+        hbaseTableSchema   '(rowkey string, value string)',
+        externalTableSchema 't1,f1:col1'
+      )
+
+   */
+
+  /**
    * Adds a method, `hbaseFile`, to SQLContext that allows reading data stored in hbase table.
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
