@@ -18,10 +18,11 @@
 package com.shengli.spark.hbase
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql._
-import scala.collection.immutable.Map
+import scala.Predef.String
+import scala.collection.immutable.{HashMap, Map}
 import org.apache.hadoop.hbase.client.{Scan, HTable}
 
-import org.apache.spark._
+import org.apache.spark.sql._
 import org.apache.spark.rdd.NewHadoopRDD
 import org.apache.hadoop.hbase.HBaseConfiguration;
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
@@ -34,18 +35,30 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
 
   val schema = {
     //should return StructType
-    //TODO
+    val sceProps = hbaseProps.getOrElse("schema", sys.error("no hbase schema to read."))
+    val sce = sceProps.asInstanceOf[HashMap[String,String]]
+    val fields = sce.map{case(k,v)=>
+        val schemaType =  v match  {
+          case "string" =>
+            SchemaType(StringType,nullable = false)
+          case "int" =>
+            SchemaType(IntegerType,nullable = false)
+        }
+        StructField(k,schemaType.dataType,schemaType.nullable)
+    )
+    StructType(fields)
   }
+}
   // we need to check the required parameters first
     /**
      * tableName
      * hbase.columns.mapping
      * zookeeperAddress  localhost:2181
     */
-
-  private def checkRequireedHbaseConf(hbaseProps: Map[String,String]) {
-
-  }
+//
+//  private def checkRequireedHbaseConf(hbaseProps: Map[String,String]) {
+//
+//  }
   // By making this a lazy val we keep the RDD around, amortizing the cost of locating splits.
   lazy val buildScan = {
 
@@ -76,6 +89,8 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
     val rs = hrdd.map(tuple => tuple._2).map(result => {
       ( result.getRow.map(_.toChar).mkString, result.value.map(_.toChar).mkString)
     })
+
+    Row.fromSeq(rs)
   }
 
   private case class SchemaType(dataType: DataType, nullable: Boolean)

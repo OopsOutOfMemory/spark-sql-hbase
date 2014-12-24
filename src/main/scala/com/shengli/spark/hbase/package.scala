@@ -33,16 +33,18 @@ package object hbase {
 
    */
 
+  case class TableSchema(fieldName: String, fieldType: String)
+
   /**
    * Adds a method, `hbaseFile`, to SQLContext that allows reading data stored in hbase table.
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
-    def hbaseFile(tableName: String, cfName: String, columnName: String) = {
+    def hbaseTable(tableName: String, cfName: String, columnName: String, schema: HashMap[String,Any]) = {
       var params = new HashMap[String, String]
       params += ("tableName" -> tableName)
       params += ("cfName" -> cfName)
       params += ("columnName" -> columnName)
-
+      params += ( "schema" -> schema )
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
   }
