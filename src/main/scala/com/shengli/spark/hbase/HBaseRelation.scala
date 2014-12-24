@@ -18,7 +18,7 @@
 package com.shengli.spark.hbase
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql._
-import scala.Predef.String
+import org.apache.spark.sql.sources.TableScan
 import scala.collection.immutable.{HashMap, Map}
 import org.apache.hadoop.hbase.client.{Scan, HTable}
 
@@ -31,7 +31,7 @@ import scala.collection.JavaConverters._
 import org.apache.hadoop.hbase.client.HBaseAdmin
 
 
-case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan {
+case class HBaseRelation(hbaseProps: scala.collection.mutable.HashMap[String,Any])(@transient val sqlContext: SQLContext) extends TableScan {
 
   val schema = {
     //should return StructType
@@ -45,10 +45,10 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
             SchemaType(IntegerType,nullable = false)
         }
         StructField(k,schemaType.dataType,schemaType.nullable)
-    )
-    StructType(fields)
+    }
+    StructType(fields.toSeq)
   }
-}
+
   // we need to check the required parameters first
     /**
      * tableName
@@ -72,7 +72,7 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
 
     hbaseConf.set("hbase.zookeeper.property.clientPort", "2223")
     hbaseConf.set("hbase.zookeeper.quorum", "localhost");
-    hbaseConf.set(TableInputFormat.INPUT_TABLE, tableName)
+    hbaseConf.set(TableInputFormat.INPUT_TABLE, tableName.toString)
 
 
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
@@ -86,16 +86,16 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
 
     //for string
     //Array[(String,String)]   rowkey, cf column value
-    val rs = hrdd.map(tuple => tuple._2).map(result => {
-      ( result.getRow.map(_.toChar).mkString, result.value.map(_.toChar).mkString)
+    val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
+      val values = ( result.getRow.map(_.toChar).mkString, result.value.map(_.toChar).mkString)
+      Row.fromSeq(Seq(values))
     })
 
-    Row.fromSeq(rs)
   }
 
   private case class SchemaType(dataType: DataType, nullable: Boolean)
-
-  private def toSqlType(hbaseSchema: Schema): SchemaType = {
-    SchemaType(StringType,true)
-  }
+//
+//  private def toSqlType(hbaseSchema: Schema): SchemaType = {
+//    SchemaType(StringType,true)
+//  }
 }

@@ -40,16 +40,16 @@ package object hbase {
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
     def hbaseTable(tableName: String, cfName: String, columnName: String, schema: HashMap[String,Any]) = {
-      var params = new HashMap[String, String]
-      params += ("tableName" -> tableName)
-      params += ("cfName" -> cfName)
-      params += ("columnName" -> columnName)
-      params += ( "schema" -> schema )
+      var params = new scala.collection.mutable.HashMap[String, Any]
+      params += "tableName" -> tableName
+      params += "cfName" -> cfName
+      params += "columnName" -> columnName
+      params +=  "schema" -> schema
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
   }
 
-  implicit class HBaseSchemaRDD(schemaRDD: SchemaRDD) {
-    def saveIntoTable(tableName: String): Unit = ???
-  }
+//  implicit class HBaseSchemaRDD(schemaRDD: SchemaRDD) {
+//    def saveIntoTable(tableName: String): Unit = ???
+//  }
 }
