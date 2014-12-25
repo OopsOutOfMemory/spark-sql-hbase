@@ -21,8 +21,6 @@ import com.shengli.spark.hbase
 
 
 class DefaultSource extends RelationProvider {
-
-
   def createRelation(sqlContext: SQLContext, parameters: Map[String, String]) = {
     HBaseRelation(parameters)(sqlContext)
   }

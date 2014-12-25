@@ -16,35 +16,33 @@
 package com.shengli.spark
 
 import org.apache.spark.sql.{SQLContext, SchemaRDD}
-
-import scala.Predef.String
 import scala.collection.immutable.HashMap
 
 package object hbase {
-
   /**
    *  CREATE TEMPORARY TABLE hbaseTable
       USING com.shengli.spark.hbase
       OPTIONS (
-        zookeeperAddress 'localhost:2181',
-        hbaseTableSchema   '(rowkey string, value string)',
-        externalTableSchema 't1,f1:col1'
+        registerTableSchema   '(rowkey string, value string)',
+        externalTableName    'test',
+        externalTableSchema '(:key, cf:a)'
       )
-
    */
 
-  case class TableSchema(fieldName: String, fieldType: String)
+  abstract class SchemaField
 
+  case class RegisteredSchemaField(fieldName: String, fieldType: String)  extends  SchemaField
+
+  case class HBaseSchemaField(fieldName: String, fieldType: String)  extends  SchemaField
   /**
    * Adds a method, `hbaseFile`, to SQLContext that allows reading data stored in hbase table.
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
-    def hbaseTable(tableName: String, cfName: String, columnName: String, schema: HashMap[String,Any]) = {
-      var params = new scala.collection.mutable.HashMap[String, Any]
-      params += "tableName" -> tableName
-      params += "cfName" -> cfName
-      params += "columnName" -> columnName
-      params +=  "schema" -> schema
+    def hbaseTable(registerTableSchema: String, externalTableName: String, externalTableSchema: String) = {
+      var params = new HashMap[String, String]
+      params += ( "registerTableSchema" -> registerTableSchema)
+      params += ( "externalTableName" -> externalTableName)
+      params += ( "externalTableSchema" -> externalTableSchema)
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
   }

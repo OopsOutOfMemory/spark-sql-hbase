@@ -31,49 +31,91 @@ import scala.collection.JavaConverters._
 import org.apache.hadoop.hbase.client.HBaseAdmin
 
 
-case class HBaseRelation(hbaseProps: scala.collection.mutable.HashMap[String,Any])(@transient val sqlContext: SQLContext) extends TableScan {
+/**
+ *  CREATE TEMPORARY TABLE hbaseTable
+      USING com.shengli.spark.hbase
+      OPTIONS (
+        registerTableSchema   '(rowkey string, value string)',
+        externalTableName    'test',
+        externalTableSchema '(rowkey:rowkey string, f1:col1 string)'
+      )
+ */
 
-  val schema = {
+case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan {
+  val externalTableName =  hbaseProps.getOrElse("externalTableName", sys.error("not valid schema"))
+  val externalTableSchema =  hbaseProps.getOrElse("externalTableSchema", sys.error("not valid schema"))
+
+  val registerTableSchema = hbaseProps.getOrElse("registerTableSchema", sys.error("not valid schema"))
+
+  val tableName = hbaseProps.getOrElse("tableName",sys.error("no table name found!"))
+  lazy val schema = {
     //should return StructType
-    val sceProps = hbaseProps.getOrElse("schema", sys.error("no hbase schema to read."))
-    val sce = sceProps.asInstanceOf[HashMap[String,String]]
-    val fields = sce.map{case(k,v)=>
-        val schemaType =  v match  {
+    val externalTableFields = extractExternalSchema(externalTableSchema)
+    val fields = externalTableFields.map{
+      case  field : HBaseSchemaField =>
+        val name  = field.fieldName.replace(":","_")
+        val relatedType =  field.fieldType match  {
           case "string" =>
             SchemaType(StringType,nullable = false)
           case "int" =>
             SchemaType(IntegerType,nullable = false)
+          case "long" =>
+            SchemaType(LongType,nullable = false)
         }
-        StructField(k,schemaType.dataType,schemaType.nullable)
+        StructField(name,relatedType.dataType,relatedType.nullable)
     }
-    StructType(fields.toSeq)
+    StructType(fields)
   }
 
-  // we need to check the required parameters first
     /**
-     * tableName
-     * hbase.columns.mapping
-     * zookeeperAddress  localhost:2181
-    */
-//
-//  private def checkRequireedHbaseConf(hbaseProps: Map[String,String]) {
-//
-//  }
+     * spark sql schema will be register
+     *   registerTableSchema   '(rowkey string, value string)'
+      */
+  def extractRegisterSchema(registerTableSchema: String) : Array[RegisteredSchemaField] = {
+         val fieldsStr = registerTableSchema.trim.drop(1).dropRight(1)
+         val fieldsArray = fieldsStr.split(",").map(_.trim)
+         fieldsArray.map{ fildString =>
+           val splitedField = fildString.split("\\s+", -1)
+           RegisteredSchemaField(splitedField(0), splitedField(1))
+         }
+   }
+
+  //externalTableSchema '(:key, f1:col1)'
+  def extractExternalSchema(externalTableSchema: String) : Array[HBaseSchemaField] = {
+        val fieldsStr = externalTableSchema.trim.drop(1).dropRight(1)
+        val fieldsArray = fieldsStr.split(",").map(_.trim)
+        fieldsArray.map{ fildString =>
+          val splitedField = fildString.split(":", -1)
+          HBaseSchemaField(splitedField(0), splitedField(1))
+    }
+  }
+
+
   // By making this a lazy val we keep the RDD around, amortizing the cost of locating splits.
   lazy val buildScan = {
 
-    val hbaseConf = HBaseConfiguration.create();
-    val tableName = hbaseProps.getOrElse("tableName",sys.error("no table name found!"))
-    val zookeeper = hbaseProps.getOrElse("zookeeperAddress",sys.error("no zookeeper address found!"))
+    val hbaseTableFields = extractExternalSchema(externalTableSchema)
+    val hbaseConf = HBaseConfiguration.create()
     //This should be kv pairs
-    val columnFamilyName = hbaseProps.getOrElse("cfs",sys.error("no cfs found!"))
-    val columnName = hbaseProps.getOrElse("columns",sys.error("no columns found!"))
+    var rowKey: String = null
+    var columnFamilyName: String  = null
+    var columnName: String  = null
 
+    hbaseTableFields.foreach{field=>
+      val cf = field.fieldName.split(":",-1)(0)
+      val col = field.fieldName.split(":",-1)(1)
+      if(cf == col && cf=="rowkey") {
+        rowKey = "rowkey"
+      }
+      else{
+        //currently we only support to query one column of one cf
+        columnFamilyName = cf
+        columnName = col
+      }
+    }
 
-    hbaseConf.set("hbase.zookeeper.property.clientPort", "2223")
-    hbaseConf.set("hbase.zookeeper.quorum", "localhost");
-    hbaseConf.set(TableInputFormat.INPUT_TABLE, tableName.toString)
-
+    hbaseConf.set(TableInputFormat.INPUT_TABLE, externalTableName)
+    hbaseConf.set(TableInputFormat.SCAN_COLUMNS, columnFamilyName+":"+columnName);
 
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
       hbaseConf,
@@ -87,10 +129,10 @@ case class HBaseRelation(hbaseProps: scala.collection.mutable.HashMap[String,Any
     //for string
     //Array[(String,String)]   rowkey, cf column value
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
-      val values = ( result.getRow.map(_.toChar).mkString, result.value.map(_.toChar).mkString)
-      Row.fromSeq(Seq(values))
+      val values = List(result.getRow.map(_.toChar).mkString, result.value.map(_.toChar).mkString)
+      Row.fromSeq(values.toSeq)
     })
-
+    rs
   }
 
   private case class SchemaType(dataType: DataType, nullable: Boolean)
