@@ -4,12 +4,15 @@
  _Spark SQL HBase Connector_ aim to query HBase Table by using Spark SQL.
  
  It leverages the functionality of [Spark SQL](http://spark.apache.org/sql/) 1.2+ external datasource API .
- >作为一个中国人，我还是写几句中文 ：）
+
+> 作为一个中国人，我还是写几句中文 ：）
 Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能方便的编写扩展来使Spark SQL能支持更多的外部数据源。
 鉴于国内用HBase的用户比较多，所以使Spark SQL支持查询HBase还是很有价值的，这也是我写这个Lib的原因。
 不过，一个人得力量远不如大家的力量，所以希望大家能多提Issues，多多Commit~ 先谢谢了：）
 
+
 ####Concepts
+Let me explain two concepts first, this will help you understand the the connector:
 
 __1、External Table__
 
@@ -41,12 +44,24 @@ As We know for one specific `HBase Table` there should be a `Spark SQL Table` wh
 	sqlContext.sql(hbaseDDL)
 	sql("select row_key,name from hbase_people").collect()
 ```
+
 Let's see the result:
+
+__select__
+
 ```
 scala> sql("select row_key,name from hbase_people").collect()
 14/12/26 00:42:13 INFO scheduler.TaskSchedulerImpl: Removed TaskSet 3.0, whose tasks have all completed, from pool 
 14/12/26 00:42:13 INFO scheduler.DAGScheduler: Job 3 finished: collect at SparkPlan.scala:81, took 0.140132 s
 res11: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li], [rowkey002,Li,Lei], [rowkey003,Jim Green], [rowkey004,Lucy], [rowkey005,HanMeiMei])
+```
+
+__count(1)__
+
+```scala
+scala> sql("select count(1) from hbase_people").collect()
+14/12/26 01:05:39 INFO scheduler.DAGScheduler: Job 1 finished: collect at SparkPlan.scala:81, took 0.442987 s
+res6: Array[org.apache.spark.sql.Row] = Array([5])
 ```
 
 ####2. Query by SQLContext API
@@ -121,6 +136,65 @@ ROW                                  COLUMN+CELL
 5 row(s) in 0.0260 seconds
 ```
 
+###Note:
+
+####Package
+
+In the root directory,  use `sbt package` to package the lib.
+
+####Dependency
+
+__1. hbase-site.xml__
+
+You need place `hbase-site.xml` under the spark classpath. Also need to configure it correctly first.
+Below is my hbase-site.xml:
+
+```scala
+<configuration>
+ <property>
+     <name>hbase.rootdir</name>
+     <value>file:///Users/shengli/software/data/hbase</value>
+ </property>
+ <property>
+     <name>hbase.cluster.distributed</name>
+         <value>true</value>
+ </property>
+ <property>
+      <name>hbase.zookeeper.property.clientPort</name>
+               <value>2181</value>
+  </property>
+
+ <property>
+     <name>hbase.zookeeper.quorum</name>
+     <value>localhost</value>
+  </property>
+  <property>
+      <name>hbase.defaults.for.version.skip</name>
+          <value>true</value>
+  </property>
+</configuration>
+```
+
+You can simply do it with `ln -s ~/software/hbase/conf/hbase-site.xml ~/git_repos/spark`
+
+__2. Add hbase related libs into spark classpath__
+
+Below is how I start the spark shell:
+
+```scala
+bin/spark-shell --master spark://192.168.2.101:7077 --jars /Users/shengli/software/hbase/lib/hbase-client-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-server-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-common-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-protocol-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/protobuf-java-2.5.0.jar,/Users/shengli/software/hbase/lib/htrace-core-2.04.jar,/Users/shengli/git_repos/spark-hbase/target/scala-2.10/spark-hbase_2.10-0.1.jar
+```
+
+__3. class not found issues__
+
+The below provides the mapping of the classes and their respective jars
+Class Name	Jar Name
+TableSplit	hbase-server.jar
+HTable	hbase-client.jar
+MasterProtos	hbase-protocol.jar
+org.cloudera.htrace.Trace	htrace-core-2.01.jar
+
+- https://support.pivotal.io/hc/en-us/articles/203025186-Hive-Query-from-Tableau-failed-with-error-Execution-Error-return-code-2-from-org-apache-hadoop-hive-ql-exec-mr-MapRedTask
 
 ###Contact Me
 如果有任何疑问，可以通过以下方式联系我：
