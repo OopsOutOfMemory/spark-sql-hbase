@@ -1,0 +1,23 @@
+create 'people',{NAME => 'profile', VERSIONS => 1},{NAME => 'career', VERSIONS => 1}
+
+put 'people','rowkey001','profile:name','Sheng,Li'
+put 'people','rowkey002','profile:name','Li,Lei'
+put 'people','rowkey003','profile:name','Jim Green'
+put 'people','rowkey004','profile:name','Lucy'
+put 'people','rowkey005','profile:name','HanMeiMei'
+
+
+put 'people','rowkey001','profile:age','25'
+put 'people','rowkey002','profile:age','26'
+put 'people','rowkey003','profile:age','24'
+put 'people','rowkey004','profile:age','23'
+put 'people','rowkey005','profile:age','18'
+
+
+put 'people','rowkey001','career:job','software engineer'
+put 'people','rowkey002','career:job','teacher'
+put 'people','rowkey003','career:job','english teacher'
+put 'people','rowkey004','career:job','doctor'
+put 'people','rowkey005','career:job','student'
+
+get 'people','rowkey001'
