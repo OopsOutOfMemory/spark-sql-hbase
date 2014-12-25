@@ -26,18 +26,18 @@ import TestSQLContext._
 class HBaseSuite extends FunSuite {
 
   test("dsl test") {
-    val results = TestSQLContext.hbaseTable("(rowkey string, value string)","test","rowkey:rowkey,cf:a").select('value).collect()
+    val results = TestSQLContext.hbaseTable("(rowkey string, value string)","test","(rowkey:rowkey string,cf:a string)").select('value).collect()
     assert(results.size === 8)
   }
 
-//  test("sql test") {
-//    sql(
-//      s"""
-//        |CREATE TEMPORARY TABLE avroTable
-//        |USING org.apache.spark.sql.avro
-//        |OPTIONS (path "$episodesFile")
-//      """.stripMargin.replaceAll("\n", " "))
-//
-//    assert(sql("SELECT * FROM avroTable").collect().size === 8)
-//  }
+  test("sql test") {
+    sql(
+      s"""
+        |CREATE TEMPORARY TABLE avroTable
+        |USING org.apache.spark.sql.avro
+        |OPTIONS (path "$episodesFile")
+      """.stripMargin.replaceAll("\n", " "))
+
+    assert(sql("SELECT * FROM avroTable").collect().size === 8)
+  }
 }

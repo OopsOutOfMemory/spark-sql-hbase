@@ -20,6 +20,7 @@ import scala.collection.immutable.HashMap
 
 package object hbase {
   /**
+   *
    *  CREATE TEMPORARY TABLE hbaseTable
       USING com.shengli.spark.hbase
       OPTIONS (
