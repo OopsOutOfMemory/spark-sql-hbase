@@ -50,12 +50,17 @@ res11: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li], [rowkey002,
 ```
 
 ####2. Query by SQLContext API
+
 Firstly, import `import com.shengli.spark.hbase._`
 Secondly, use `sqlContext.hbaseTable` _API_ to generate a `SchemaRDD`
 The `sqlContext.hbaseTable` _API_ need serveral parameters.
-__def hbaseTable(registerTableSchema: String, externalTableName: String, externalTableSchema: String)__
+
+```scala
+hbaseTable(registerTableSchema: String, externalTableName: String, externalTableSchema: String)__
+```
 
 Let me give you a detail example:
+
 ```scala
 scala> import com.shengli.spark.hbase._
 import com.shengli.spark.hbase._
@@ -70,7 +75,7 @@ SchemaRDD[13] at RDD at SchemaRDD.scala:108
 PhysicalRDD [row_key#4,name#5], MapPartitionsRDD[16] at map at HBaseRelation.scala:121
 ```
 
-We've got a hbaseSchema so that we can query it with DSL:
+We've got a hbaseSchema so that we can query it with DSL or register it as a temp table query with sql, do whatever you like:
 
 ```scala
 scala> hbaseSchema.select('name).collect()
@@ -85,10 +90,15 @@ res9: Array[org.apache.spark.sql.Row] = Array([Sheng,Li], [Li,Lei], [Jim Green],
 ```
 
 ##HBase Data
+
 Let's take look at the `HBase Table` named `person`
+
 The `schema` of the table `person`:
+
 __column family__: `profile`, `career`
+
 __coloumns__:`profile:name`, `profile:age`,`carrer:job`
+
 
 ```java
 1.8.7-p357 :024 > scan 'people'
