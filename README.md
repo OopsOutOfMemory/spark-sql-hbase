@@ -188,11 +188,15 @@ bin/spark-shell --master spark://192.168.2.101:7077 --jars /Users/shengli/softwa
 __3. class not found issues__
 
 The below provides the mapping of the classes and their respective jars
-Class Name	Jar Name
-TableSplit	hbase-server.jar
-HTable	hbase-client.jar
-MasterProtos	hbase-protocol.jar
-org.cloudera.htrace.Trace	htrace-core-2.01.jar
+
+```scala
+| Class Name |	Jar Name       |
+|------------|-----------------|
+| TableSplit |	hbase-server.jar |
+| HTable |	hbase-client.jar |
+| MasterProtos |	hbase-protocol.jar |
+| org.cloudera.htrace.Trace |	htrace-core-2.01.jar |
+```
 
 - https://support.pivotal.io/hc/en-us/articles/203025186-Hive-Query-from-Tableau-failed-with-error-Execution-Error-return-code-2-from-org-apache-hadoop-hive-ql-exec-mr-MapRedTask
 
