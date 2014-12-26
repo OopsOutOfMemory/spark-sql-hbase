@@ -26,32 +26,29 @@ case class RowKey(value: Any) extends HBaseFieldResult (value: Any) with Seriali
 case class ColumnValue(value: Any) extends HBaseFieldResult  (value: Any) with Serializable
 
 
-class RowKeyResolver(result: Result, resultType: String) extends Serializable  {
-  def apply() = {
-    val value = resultType match {
-      case "string" =>
-        result.getRow.map(_.toChar).mkString
-      case "int" =>
-        result  .getRow.map(_.toChar).mkString.toInt
-      case "long" =>
-        result.getRow.map(_.toChar).mkString.toLong
-    }
-    RowKey(value)
+
+
+case class Resolver(hbaseField: HBaseSchemaField, result: Result ) extends  Serializable {
+  def apply () {
+    //        val cfColArray = hbaseField.fieldName.split(":",-1)
+    //        val cfName = cfColArray(0)
+    //        val colName =  cfColArray(1)
+    var fieldRs: String = null
+    //        //resolve row key otherwise resolve column
+    //        if(cfName=="" && colName=="key") {
+    ////          fieldRs = resolveRowKey(result, hbaseField.fieldType).toString
+    //          fieldRs = "key"
+    //        } else {
+    ////          fieldRs =  resolveColumn (result, cfName, colName,hbaseField.fieldType).toString
+    //          fieldRs = "value"
+    //        }
+    fieldRs = "key"
+    fieldRs
   }
 }
-class ColumnResolver(result: Result, columnFamily: String, columnName: String, resultType: String) extends Serializable  {
-  def apply() = {
-    val value = resultType match {
-      case "string" =>
-        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString
-      case "int" =>
-        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString.toInt
-      case "long" =>
-        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString.toLong
-    }
-    ColumnValue(value)
-  }
-}
+
+
+
 /**
  *  CREATE TEMPORARY TABLE hbaseTable
       USING com.shengli.spark.hbase
@@ -70,6 +67,29 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
   val registerTableFields = extractRegisterSchema(registerTableSchema)
   val fieldsRelations = tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
   val queryColumns =   getQueryTargetCloumns(hbaseTableFields)
+
+  val resolveRowKey = (result: Result, resultType: String) => {
+    resultType match {
+      case "string" =>
+        result.getRow.map(_.toChar).mkString
+      case "int" =>
+        result  .getRow.map(_.toChar).mkString.toInt
+      case "long" =>
+        result.getRow.map(_.toChar).mkString.toLong
+    }
+  }
+
+  val resolveColumn = (result: Result, columnFamily: String, columnName: String, resultType: String) => {
+    val value = resultType match {
+      case "string" =>
+        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString
+      case "int" =>
+        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString.toInt
+      case "long" =>
+        result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString.toLong
+    }
+    value
+  }
 
   def isRowKey(field: HBaseSchemaField) : Boolean = {
     val cfColArray = field.fieldName.split(":",-1)
@@ -134,19 +154,7 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
     }
   }
 
-  val resolvedField = (hbaseField: HBaseSchemaField, result: Result ) => {
-        val cfColArray = hbaseField.fieldName.split(":",-1)
-        val cfName = cfColArray(0)
-        val colName =  cfColArray(1)
-        var fieldRs:HBaseFieldResult = null
-        //resolve row key otherwise resolve column
-        if(cfName=="" && colName=="key") {
-          fieldRs = new RowKeyResolver(result, hbaseField.fieldType) with Serializable apply
-        } else {
-          fieldRs =  new ColumnResolver(result, cfName, colName,hbaseField.fieldType) with Serializable apply
-        }
-        fieldRs
-  }
+
 
   // By making this a lazy val we keep the RDD around, amortizing the cost of locating splits.
   lazy val buildScan = {
@@ -162,12 +170,18 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
       classOf[org.apache.hadoop.hbase.client.Result]
     )
     //for string
+    val hbaseFields =  extractExternalSchema(externalTableSchema)
+
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
       //for each field , need to be resolved
       var values = new ArrayBuffer[Any]()
-      val fields =  hbaseTableFields.map{field=>
-        values += resolvedField(field,result).eval()
+      hbaseFields.foreach{field=>
+//        println("field is ="+field)
+        values += Resolver(field,result)
+//        println("values is ="+values)
+
       }
+      println(Row.fromSeq(values.toSeq))
       Row.fromSeq(values.toSeq)
     })
     rs
