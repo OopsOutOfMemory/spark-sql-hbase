@@ -14,18 +14,25 @@ package object hbase {
 
    case class RegisteredSchemaField(fieldName: String, fieldType: String)  extends  SchemaField  with Serializable
 
-   case class HBaseSchemaField(fieldName: String, fieldType: String)  extends  SchemaField   with Serializable
+   case class HBaseSchemaField(fieldName: String, fieldType: String)  extends  SchemaField  with Serializable
+
+   case class Parameter(name: String)
+
+
+  protected  val SPARK_SQL_TABLE_SCHEMA = Parameter("sparksql_table_schema")
+  protected  val HBASE_TABLE_NAME = Parameter("hbase_table_name")
+  protected  val HBASE_TABLE_SCHEMA = Parameter("hbase_table_schema")
 
 
   /**
    * Adds a method, `hbaseTable`, to SQLContext that allows reading data stored in hbase table.
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
-    def hbaseTable(registerTableSchema: String, externalTableName: String, externalTableSchema: String) = {
+    def hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) = {
       var params = new HashMap[String, String]
-      params += ( "registerTableSchema" -> registerTableSchema)
-      params += ( "externalTableName" -> externalTableName)
-      params += ( "externalTableSchema" -> externalTableSchema)
+      params += ( SPARK_SQL_TABLE_SCHEMA.name -> sparksqlTableSchema)
+      params += ( HBASE_TABLE_NAME.name -> hbaseTableName)
+      params += ( HBASE_TABLE_SCHEMA.name -> hbaseTableSchema)
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
   }

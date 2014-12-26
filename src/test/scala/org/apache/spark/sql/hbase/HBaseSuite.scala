@@ -9,7 +9,7 @@ import TestSQLContext._
 class HBaseSuite extends FunSuite {
 
   test("dsl test") {
-    val results = TestSQLContext.hbaseTable("(rowkey string, value string)","test","(rowkey:rowkey string,cf:a string)").select('value).count.collect()
+    val results = TestSQLContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)").select('name).count.collect()
     assert(results.size === 5)
   }
 
@@ -19,9 +19,9 @@ class HBaseSuite extends FunSuite {
       |CREATE TEMPORARY TABLE hbase_people
       |USING com.shengli.spark.hbase
       |OPTIONS (
-      |  registerTableSchema   '(row_key string, name string)',
-      |  externalTableName    'people',
-      |  externalTableSchema '(rowkey:rowkey string, profile:name string)'
+      |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
+      |  hbase_table_name    'people',
+      |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)'
       |)""".stripMargin
 
     assert(sql("SELECT * FROM hbase_people").collect().size === 5)  )

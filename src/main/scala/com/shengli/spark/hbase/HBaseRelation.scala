@@ -2,6 +2,9 @@
 * Copyright 2014 Sheng, Li
 */
 package com.shengli.spark.hbase
+
+import java.io.Serializable
+
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources.TableScan
@@ -17,59 +20,24 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 
-abstract class HBaseFieldResult(value: Any) extends Serializable  {
-    def eval() = {
-      value
+object Resolver {
+
+  def resolve (hbaseField: HBaseSchemaField, result: Result ): Any = {
+    val cfColArray = hbaseField.fieldName.split(":",-1)
+    val cfName = cfColArray(0)
+    val colName =  cfColArray(1)
+    var fieldRs: Any = null
+    //resolve row key otherwise resolve column
+    if(cfName=="" && colName=="key") {
+      fieldRs = resolveRowKey(result, hbaseField.fieldType)
+    } else {
+      fieldRs =  resolveColumn(result, cfName, colName,hbaseField.fieldType)
     }
-}
-case class RowKey(value: Any) extends HBaseFieldResult (value: Any) with Serializable
-case class ColumnValue(value: Any) extends HBaseFieldResult  (value: Any) with Serializable
-
-
-
-
-case class Resolver(hbaseField: HBaseSchemaField, result: Result ) extends  Serializable {
-  def apply () {
-    //        val cfColArray = hbaseField.fieldName.split(":",-1)
-    //        val cfName = cfColArray(0)
-    //        val colName =  cfColArray(1)
-    var fieldRs: String = null
-    //        //resolve row key otherwise resolve column
-    //        if(cfName=="" && colName=="key") {
-    ////          fieldRs = resolveRowKey(result, hbaseField.fieldType).toString
-    //          fieldRs = "key"
-    //        } else {
-    ////          fieldRs =  resolveColumn (result, cfName, colName,hbaseField.fieldType).toString
-    //          fieldRs = "value"
-    //        }
-    fieldRs = "key"
     fieldRs
   }
-}
 
-
-
-/**
- *  CREATE TEMPORARY TABLE hbaseTable
-      USING com.shengli.spark.hbase
-      OPTIONS (
-        registerTableSchema   '(rowkey string, f1col1 string, f1col2:string)',
-        externalTableName    'test',
-        externalTableSchema '(rowkey:rowkey string, f1:col1 string, f1:col2 string)'
-      )
- */
-case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
-  val externalTableName =  hbaseProps.getOrElse("externalTableName", sys.error("not valid schema"))
-  val externalTableSchema =  hbaseProps.getOrElse("externalTableSchema", sys.error("not valid schema"))
-  val registerTableSchema = hbaseProps.getOrElse("registerTableSchema", sys.error("not valid schema"))
-
-  val hbaseTableFields = extractExternalSchema(externalTableSchema)
-  val registerTableFields = extractRegisterSchema(registerTableSchema)
-  val fieldsRelations = tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
-  val queryColumns =   getQueryTargetCloumns(hbaseTableFields)
-
-  val resolveRowKey = (result: Result, resultType: String) => {
-    resultType match {
+  def resolveRowKey (result: Result, resultType: String): Any = {
+     val rowkey = resultType match {
       case "string" =>
         result.getRow.map(_.toChar).mkString
       case "int" =>
@@ -77,10 +45,11 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
       case "long" =>
         result.getRow.map(_.toChar).mkString.toLong
     }
+    rowkey
   }
 
-  val resolveColumn = (result: Result, columnFamily: String, columnName: String, resultType: String) => {
-    val value = resultType match {
+  def resolveColumn (result: Result, columnFamily: String, columnName: String, resultType: String): Any = {
+    val column = resultType match {
       case "string" =>
         result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString
       case "int" =>
@@ -88,8 +57,31 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
       case "long" =>
         result.getValue(columnFamily.getBytes,columnName.getBytes).map(_.toChar).mkString.toLong
     }
-    value
+    column
   }
+}
+
+/**
+   val hbaseDDL = s"""
+      |CREATE TEMPORARY TABLE hbase_people
+      |USING com.shengli.spark.hbase
+      |OPTIONS (
+      |  sparksql.table.schema   '(row_key string, name string, age int, job string)',
+      |  hbase.table.name    'people',
+      |  hbase.table.schema '(:key string, profile:name string, profile:age int, career:job string)'
+      |)""".stripMargin
+ */
+case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
+  val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
+  val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
+  val registerTableSchema = hbaseProps.getOrElse("sparksql_table_schema", sys.error("not valid schema"))
+
+  val hbaseTableFields = extractHBaseSchema(hbaseTableSchema)
+  val registerTableFields = extractRegisterSchema(registerTableSchema)
+  val fieldsRelations = tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
+  val queryColumns =   getQueryTargetCloumns(hbaseTableFields)
+
+
 
   def isRowKey(field: HBaseSchemaField) : Boolean = {
     val cfColArray = field.fieldName.split(":",-1)
@@ -143,8 +135,8 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
          }
    }
 
-  //externalTableSchema '(rowkey:rowkey string, f1:col1 string)'
-  def extractExternalSchema(externalTableSchema: String) : Array[HBaseSchemaField] = {
+  //externalTableSchema '(:key string, f1:col1 string)'
+  def extractHBaseSchema(externalTableSchema: String) : Array[HBaseSchemaField] = {
         val fieldsStr = externalTableSchema.trim.drop(1).dropRight(1)
         val fieldsArray = fieldsStr.split(",").map(_.trim)
         fieldsArray.map{ fildString =>
@@ -160,7 +152,7 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
   lazy val buildScan = {
 
     val hbaseConf = HBaseConfiguration.create()
-    hbaseConf.set(TableInputFormat.INPUT_TABLE, externalTableName)
+    hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
     hbaseConf.set(TableInputFormat.SCAN_COLUMNS, queryColumns);
 
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
@@ -169,19 +161,13 @@ case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlConte
       classOf[org.apache.hadoop.hbase.io.ImmutableBytesWritable],
       classOf[org.apache.hadoop.hbase.client.Result]
     )
-    //for string
-    val hbaseFields =  extractExternalSchema(externalTableSchema)
+
 
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
-      //for each field , need to be resolved
       var values = new ArrayBuffer[Any]()
-      hbaseFields.foreach{field=>
-//        println("field is ="+field)
-        values += Resolver(field,result)
-//        println("values is ="+values)
-
+      hbaseTableFields.foreach{field=>
+        values += Resolver.resolve(field,result)
       }
-      println(Row.fromSeq(values.toSeq))
       Row.fromSeq(values.toSeq)
     })
     rs

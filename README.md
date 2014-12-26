@@ -11,38 +11,26 @@ Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能�
 不过，一个人得力量远不如大家的力量，所以希望大家能多提Issues，多多Commit~ 先谢谢了：）
 
 
-####Concepts
-Let me explain two concepts first, this will help you understand the the connector:
-
-__1、External Table__
-
-For HBase Table:
-We call it `external table` because it's outside of spark sql.
-
-__2、Register Table__
-
-As We know for one specific `HBase Table` there should be a `Spark SQL Table` which is a mapping of it in Spark SQL. We call it `registerTable`.
-
-
 ####Using SQL Resiger HBase Table
 
 ####1. Query by Spark SQL
   ```scala
-   import org.apache.spark.sql.SQLContext  
-   import sqlContext._
-
-   val sqlContext  = new SQLContext(sc)  
-   val hbaseDDL = s"""
-      |CREATE TEMPORARY TABLE hbase_people
-      |USING com.shengli.spark.hbase
-      |OPTIONS (
-      |  registerTableSchema   '(row_key string, name string)',
-      |  externalTableName    'people',
-      |  externalTableSchema '(rowkey:rowkey string, profile:name string)'
-      |)""".stripMargin
-	  
-	sqlContext.sql(hbaseDDL)
-	sql("select row_key,name from hbase_people").collect()
+  import org.apache.spark.sql.SQLContext  
+  val sqlContext  = new SQLContext(sc)
+  import sqlContext._
+  
+  val hbaseDDL = s"""
+        |CREATE TEMPORARY TABLE hbase_people
+        |USING com.shengli.spark.hbase
+        |OPTIONS (
+        |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
+        |  hbase_table_name    'people',
+        |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)'
+        |)""".stripMargin
+  
+        
+  sqlContext.sql(hbaseDDL)
+  sql("select row_key,name,age,job from hbase_people").collect()
 ```
 
 Let's see the result:
@@ -50,18 +38,18 @@ Let's see the result:
 __select__
 
 ```
-scala> sql("select row_key,name from hbase_people").collect()
-14/12/26 00:42:13 INFO scheduler.TaskSchedulerImpl: Removed TaskSet 3.0, whose tasks have all completed, from pool 
-14/12/26 00:42:13 INFO scheduler.DAGScheduler: Job 3 finished: collect at SparkPlan.scala:81, took 0.140132 s
-res11: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li], [rowkey002,Li,Lei], [rowkey003,Jim Green], [rowkey004,Lucy], [rowkey005,HanMeiMei])
+scala> sql("select row_key,name,age,job from hbase_people").collect()
+14/12/27 02:24:22 INFO scheduler.DAGScheduler: Job 0 finished: collect at SparkPlan.scala:81, took 1.576415 s
+res1: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li,25,software engineer], [rowkey002,Li,Lei,26,teacher], [rowkey003,Jim Green,24,english teacher], [rowkey004,Lucy,23,doctor], [rowkey005,HanMeiMei,18,student])
 ```
 
-__count(1)__
+__functions__
 
 ```scala
-scala> sql("select count(1) from hbase_people").collect()
-14/12/26 01:05:39 INFO scheduler.DAGScheduler: Job 1 finished: collect at SparkPlan.scala:81, took 0.442987 s
-res6: Array[org.apache.spark.sql.Row] = Array([5])
+scala> sql("select avg(age) from hbase_people").collect()
+14/12/27 02:26:55 INFO scheduler.TaskSchedulerImpl: Removed TaskSet 2.0, whose tasks have all completed, from pool 
+14/12/27 02:26:55 INFO scheduler.DAGScheduler: Job 1 finished: collect at SparkPlan.scala:81, took 0.459760 s
+res2: Array[org.apache.spark.sql.Row] = Array([23.2])
 ```
 
 ####2. Query by SQLContext API
@@ -71,7 +59,7 @@ Secondly, use `sqlContext.hbaseTable` _API_ to generate a `SchemaRDD`
 The `sqlContext.hbaseTable` _API_ need serveral parameters.
 
 ```scala
-hbaseTable(registerTableSchema: String, externalTableName: String, externalTableSchema: String)__
+   hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) 
 ```
 
 Let me give you a detail example:
@@ -80,27 +68,21 @@ Let me give you a detail example:
 scala> import com.shengli.spark.hbase._
 import com.shengli.spark.hbase._
 
-scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string)","people","(rowkey:rowkey string, profile:name string)")
+scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)")
 ......
-14/12/26 00:13:09 INFO spark.SparkContext: Created broadcast 3 from newAPIHadoopRDD at HBaseRelation.scala:113
+14/12/27 02:30:55 INFO spark.SparkContext: Created broadcast 4 from newAPIHadoopRDD at HBaseRelation.scala:158
 hbaseSchema: org.apache.spark.sql.SchemaRDD = 
-SchemaRDD[13] at RDD at SchemaRDD.scala:108
+SchemaRDD[16] at RDD at SchemaRDD.scala:108
 == Query Plan ==
 == Physical Plan ==
-PhysicalRDD [row_key#4,name#5], MapPartitionsRDD[16] at map at HBaseRelation.scala:121
+PhysicalRDD [row_key#15,name#16,age#17,job#18], MapPartitionsRDD[19] at map at HBaseRelation.scala:166
 ```
 
 We've got a hbaseSchema so that we can query it with DSL or register it as a temp table query with sql, do whatever you like:
 
 ```scala
 scala> hbaseSchema.select('name).collect()
-14/12/26 00:14:30 INFO util.RegionSizeCalculator: Calculating region sizes for table "people".
-14/12/26 00:14:30 INFO spark.SparkContext: Starting job: collect at SparkPlan.scala:81
-14/12/26 00:14:30 INFO scheduler.DAGScheduler: Got job 1 (collect at SparkPlan.scala:81) with 1 output partitions (allowLocal=false)
-14/12/26 00:14:30 INFO scheduler.DAGScheduler: Final stage: Stage 1(collect at SparkPlan.scala:81)
-14/12/26 00:14:30 INFO scheduler.DAGScheduler: Parents of final stage: List()
 ......
-14/12/26 00:14:30 INFO scheduler.DAGScheduler: Job 1 finished: collect at SparkPlan.scala:81, took 0.205903 s
 res9: Array[org.apache.spark.sql.Row] = Array([Sheng,Li], [Li,Lei], [Jim Green], [Lucy], [HanMeiMei])
 ```
 
@@ -182,7 +164,7 @@ __2. Add hbase related libs into spark classpath__
 Below is how I start the spark shell:
 
 ```scala
-bin/spark-shell --master spark://192.168.2.101:7077 --jars /Users/shengli/software/hbase/lib/hbase-client-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-server-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-common-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-protocol-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/protobuf-java-2.5.0.jar,/Users/shengli/software/hbase/lib/htrace-core-2.04.jar,/Users/shengli/git_repos/spark-hbase/target/scala-2.10/spark-hbase_2.10-0.1.jar
+bin/spark-shell --master spark://192.168.2.100:7077 --jars /Users/shengli/software/hbase/lib/hbase-client-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-server-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-common-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-protocol-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/protobuf-java-2.5.0.jar,/Users/shengli/software/hbase/lib/htrace-core-2.04.jar,/Users/shengli/git_repos/spark-sql-hbase/target/scala-2.10/spark-sql-hbase_2.10-0.1.jar --driver-java-options "-Dsun.io.serialization.extendedDebugInfo=true"
 ```
 
 __3. class not found issues__
