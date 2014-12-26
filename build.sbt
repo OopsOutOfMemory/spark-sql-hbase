@@ -1,4 +1,4 @@
-name := "spark-hbase"
+name := "spark-sql-hbase"
 
 version := "0.1"
 
@@ -18,22 +18,15 @@ libraryDependencies += "org.slf4j" % "slf4j-api" % "1.6.1"
 publishMavenStyle := true
 
 pomExtra := (
-  <url>https://github.com/OopsOutOfMemory/spark-hbase</url>
-  <licenses>
-    <license>
-      <name>Apache License, Verision 2.0</name>
-      <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
+  <url>https://github.com/OopsOutOfMemory/spark-sql-hbase</url>
   <scm>
-    <url>git@github.com:OopsOutOfMemory/spark-hbase.git</url>
+    <url>git@github.com:OopsOutOfMemory/spark-sql-hbase.git</url>
     <connection>scm:git:git@github.com:OopsOutOfMemory/spark-hbase.git</connection>
   </scm>
   <developers>
     <developer>
       <id>OopsOutOfMemory</id>
-      <name>Sheng Li</name>
+      <name>Sheng,Li(盛利)</name>
       <url>https://github.com/OopsOutOfMemory</url>
     </developer>
   </developers>)

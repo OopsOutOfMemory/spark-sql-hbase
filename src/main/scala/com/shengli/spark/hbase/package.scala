@@ -1,19 +1,22 @@
 /*
  * Copyright 2014 Sheng,Li
- *
  */
 package com.shengli.spark
 
 import org.apache.spark.sql.{SQLContext, SchemaRDD}
 import scala.collection.immutable.HashMap
 
+
+
 package object hbase {
 
-  abstract class SchemaField
+  abstract class SchemaField extends Serializable
 
-  case class RegisteredSchemaField(fieldName: String, fieldType: String)  extends  SchemaField
+   case class RegisteredSchemaField(fieldName: String, fieldType: String)  extends  SchemaField  with Serializable
 
-  case class HBaseSchemaField(fieldName: String, fieldType: String)  extends  SchemaField
+   case class HBaseSchemaField(fieldName: String, fieldType: String)  extends  SchemaField   with Serializable
+
+
   /**
    * Adds a method, `hbaseTable`, to SQLContext that allows reading data stored in hbase table.
    */
