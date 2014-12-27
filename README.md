@@ -15,7 +15,7 @@ Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能�
 
 ###1.Query by Spark SQL
 
-#### Support One Column and Multiple Columns.
+#### One Column and Multiple Columns Scan.
 
 Recommended way is to always put the rowkey at the first column in schema. 
 And we use `:key` represent the rowkey in hbase.   
