@@ -20,7 +20,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 
 
-object Resolver {
+object Resolver extends  Serializable {
 
   def resolve (hbaseField: HBaseSchemaField, result: Result ): Any = {
     val cfColArray = hbaseField.fieldName.split(":",-1)
@@ -71,7 +71,7 @@ object Resolver {
       |  hbase.table.schema '(:key string, profile:name string, profile:age int, career:job string)'
       |)""".stripMargin
  */
-case class HBaseRelation(hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
+case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
   val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
   val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
   val registerTableSchema = hbaseProps.getOrElse("sparksql_table_schema", sys.error("not valid schema"))
