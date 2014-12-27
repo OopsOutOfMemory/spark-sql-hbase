@@ -72,9 +72,15 @@ object Resolver extends  Serializable {
       |)""".stripMargin
  */
 case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
+
   val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
   val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
   val registerTableSchema = hbaseProps.getOrElse("sparksql_table_schema", sys.error("not valid schema"))
+  val rowRange = hbaseProps.getOrElse("row_range", "->")
+  //get star row and end row
+  val range = rowRange.split("->",-1)
+  val startRowKey = range(0).trim
+  val endRowKey = range(1).trim
 
   val hbaseTableFields = extractHBaseSchema(hbaseTableSchema)
   val registerTableFields = extractRegisterSchema(registerTableSchema)
@@ -154,6 +160,8 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
     hbaseConf.set(TableInputFormat.SCAN_COLUMNS, queryColumns);
+    hbaseConf.set(TableInputFormat.SCAN_ROW_START, startRowKey);
+    hbaseConf.set(TableInputFormat.SCAN_ROW_STOP, endRowKey);
 
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
       hbaseConf,

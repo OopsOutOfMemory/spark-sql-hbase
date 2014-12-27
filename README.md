@@ -11,9 +11,22 @@ Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能�
 不过，一个人得力量远不如大家的力量，所以希望大家能多提Issues，多多Commit~ 先谢谢了：）
 
 
-####Using SQL Resiger HBase Table
+##Using SQL Resiger HBase Table
 
-####1. Query by Spark SQL
+###1.Query by Spark SQL
+
+#### Support One Column and Multiple Columns.
+
+Recommended way is to always put the rowkey at the first column in schema. 
+And we use `:key` represent the rowkey in hbase.   
+
+`sparksql_table_schema`: is the table will register to spark sql.
+`hbase_table_name`: a real hbase table name in hbase.
+`hbase_table_schema`: the columns want's to query in hbase table __hbase_table_name__ you provided. 
+ 
+ __Note__:
+`sparksql_table_schema` and `hbase_table_schema` should be a mapping relation, should have same column number and index.
+
   ```scala
   import org.apache.spark.sql.SQLContext  
   val sqlContext  = new SQLContext(sc)
@@ -35,7 +48,7 @@ Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能�
 
 Let's see the result:
 
-__select__
+__select__:
 
 ```
 scala> sql("select row_key,name,age,job from hbase_people").collect()
@@ -43,7 +56,9 @@ scala> sql("select row_key,name,age,job from hbase_people").collect()
 res1: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li,25,software engineer], [rowkey002,Li,Lei,26,teacher], [rowkey003,Jim Green,24,english teacher], [rowkey004,Lucy,23,doctor], [rowkey005,HanMeiMei,18,student])
 ```
 
-__functions__
+__functions__:
+
+__avg__
 
 ```scala
 scala> sql("select avg(age) from hbase_people").collect()
@@ -51,18 +66,64 @@ scala> sql("select avg(age) from hbase_people").collect()
 14/12/27 02:26:55 INFO scheduler.DAGScheduler: Job 1 finished: collect at SparkPlan.scala:81, took 0.459760 s
 res2: Array[org.apache.spark.sql.Row] = Array([23.2])
 ```
+__count:__
 
-####2. Query by SQLContext API
+```scala
+scala> sql("select count(1) from hbase_people").collect()
+res3: Array[org.apache.spark.sql.Row] = Array([5])
+```
+
+### Support RowKey Range Scan
+
+If you need a range data from a hbase table, you can specify `row_rang` in __OPTIONS__.
+We only need start rowkey is `rowkey003` and end rowkey is `rowkey005`
+
+```
+ val hbaseDDL = s"""
+       |CREATE TEMPORARY TABLE hbase_people
+       |USING com.shengli.spark.hbase
+       |OPTIONS (
+       |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
+       |  hbase_table_name    'people',
+       |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)',
+       |  row_range  'rowkey003->rowkey005'
+       |)""".stripMargin
+```
+
+By using RowKey Range Scan, the result of the query only return:
+```
+res2: Array[org.apache.spark.sql.Row] = Array([rowkey003,Jim Green,24,english teacher], [rowkey004,Lucy,23,doctor])
+```
+
+And the count is:
+```
+scala> sql("select count(1) from hbase_people").collect()
+res3: Array[org.apache.spark.sql.Row] = Array([2])
+```
+
+
+###2. Query by SQLContext API
 
 Firstly, import `import com.shengli.spark.hbase._`
 Secondly, use `sqlContext.hbaseTable` _API_ to generate a `SchemaRDD`
 The `sqlContext.hbaseTable` _API_ need serveral parameters.
 
+If you do not need `row_range` which means RowKey Range Scan, you do not need pass the `row_range` parameters:
+
 ```scala
    sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) 
 ```
 
+Otherwise need pass a `row_range` which format is `starRow->endRow` to let the connector know:
+
+```scala
+sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String, rowRange: String)
+```
+
+
 Let me give you a detail example:
+
+__Common Way__:
 
 ```scala
 scala> import com.shengli.spark.hbase._
@@ -79,12 +140,40 @@ PhysicalRDD [row_key#15,name#16,age#17,job#18], MapPartitionsRDD[19] at map at H
 ```
 
 We've got a hbaseSchema so that we can query it with DSL or register it as a temp table query with sql, do whatever you like:
+```
+scala> hbaseSchema.select('row_key).collect()
+res1: Array[org.apache.spark.sql.Row] = Array([rowkey001], [rowkey002], [rowkey003], [rowkey004], [rowkey005])
+```
+
+__RowKey Range Scan__:
 
 ```scala
-scala> hbaseSchema.select('name).collect()
+scala> import com.shengli.spark.hbase._
+import com.shengli.spark.hbase._
+
+scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)","rowkey002->rowkey004")
+hbaseSchema: org.apache.spark.sql.SchemaRDD = 
+SchemaRDD[9] at RDD at SchemaRDD.scala:108
+== Query Plan ==
+== Physical Plan ==
+PhysicalRDD [row_key#8,name#9,age#10,job#11], MapPartitionsRDD[12] at map at HBaseRelation.scala:174
+
+scala> hbaseSchema.select('row_key).collect()
 ......
-res9: Array[org.apache.spark.sql.Row] = Array([Sheng,Li], [Li,Lei], [Jim Green], [Lucy], [HanMeiMei])
+res0: Array[org.apache.spark.sql.Row] = Array([rowkey002], [rowkey003])
 ```
+
+
+__A RowKey Range Scan Example:__
+
+```
+scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)","rowkey002->rowkey005").collect()
+......
+hbaseSchema: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li,25,software engineer], [rowkey002,Li,Lei,26,teacher], [rowkey003,Jim Green,24,english teacher], [rowkey004,Lucy,23,doctor], [rowkey005,HanMeiMei,18,student])
+```
+
+
+
 
 ##HBase Data
 
