@@ -20,9 +20,9 @@ Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能�
 Recommended way is to always put the rowkey at the first column in schema. 
 And we use `:key` represent the rowkey in hbase.   
 
-`sparksql_table_schema`: is the table will register to spark sql.
-`hbase_table_name`: a real hbase table name in hbase.
-`hbase_table_schema`: the columns want's to query in hbase table __hbase_table_name__ you provided. 
+`sparksql_table_schema`: is the table will register to spark sql. <br/>
+`hbase_table_name`: a real hbase table name in hbase. <br/>
+`hbase_table_schema`: the columns want's to query in hbase table __hbase_table_name__ you provided.  <br/>
  
  __Note__:
 `sparksql_table_schema` and `hbase_table_schema` should be a mapping relation, should have same column number and index.
@@ -58,7 +58,7 @@ res1: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li,25,software en
 
 __functions__:
 
-__avg__
+__avg__:
 
 ```scala
 scala> sql("select avg(age) from hbase_people").collect()
@@ -75,7 +75,7 @@ res3: Array[org.apache.spark.sql.Row] = Array([5])
 
 ### Support RowKey Range Scan
 
-If you need a range data from a hbase table, you can specify `row_rang` in __OPTIONS__.
+If you need a range data from a hbase table, you can specify `row_range` in __OPTIONS__.
 We only need start rowkey is `rowkey003` and end rowkey is `rowkey005`
 
 ```
@@ -108,22 +108,13 @@ Firstly, import `import com.shengli.spark.hbase._`
 Secondly, use `sqlContext.hbaseTable` _API_ to generate a `SchemaRDD`
 The `sqlContext.hbaseTable` _API_ need serveral parameters.
 
-If you do not need `row_range` which means RowKey Range Scan, you do not need pass the `row_range` parameters:
+__Common Way__:
+
+If you do common Scan, you just pass three parameters below:
 
 ```scala
    sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) 
 ```
-
-Otherwise need pass a `row_range` which format is `starRow->endRow` to let the connector know:
-
-```scala
-sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String, rowRange: String)
-```
-
-
-Let me give you a detail example:
-
-__Common Way__:
 
 ```scala
 scala> import com.shengli.spark.hbase._
@@ -147,6 +138,13 @@ res1: Array[org.apache.spark.sql.Row] = Array([rowkey001], [rowkey002], [rowkey0
 
 __RowKey Range Scan__:
 
+RowKey Range Scan need pass a `row_range` which format is `starRow->endRow` to let the connector know:
+
+```scala
+sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String, rowRange: String)
+```
+
+
 ```scala
 scala> import com.shengli.spark.hbase._
 import com.shengli.spark.hbase._
@@ -162,16 +160,6 @@ scala> hbaseSchema.select('row_key).collect()
 ......
 res0: Array[org.apache.spark.sql.Row] = Array([rowkey002], [rowkey003])
 ```
-
-
-__A RowKey Range Scan Example:__
-
-```
-scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)","rowkey002->rowkey005").collect()
-......
-hbaseSchema: Array[org.apache.spark.sql.Row] = Array([rowkey001,Sheng,Li,25,software engineer], [rowkey002,Li,Lei,26,teacher], [rowkey003,Jim Green,24,english teacher], [rowkey004,Lucy,23,doctor], [rowkey005,HanMeiMei,18,student])
-```
-
 
 
 
