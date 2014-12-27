@@ -59,7 +59,7 @@ Secondly, use `sqlContext.hbaseTable` _API_ to generate a `SchemaRDD`
 The `sqlContext.hbaseTable` _API_ need serveral parameters.
 
 ```scala
-   hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) 
+   sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) 
 ```
 
 Let me give you a detail example:
@@ -186,5 +186,3 @@ The below provides the mapping of the classes and their respective jars
 如果有任何疑问，可以通过以下方式联系我：
 - WeiBo: http://weibo.com/oopsoom
 - Blog: http://blog.csdn.net/oopsoom
-- 邮箱：<victorshengli@126.com> 常用
-- 邮箱：<victorsheng117@gmail.com> 需要VPN，不常使用
