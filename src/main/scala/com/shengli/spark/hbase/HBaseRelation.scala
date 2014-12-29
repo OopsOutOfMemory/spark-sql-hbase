@@ -8,11 +8,9 @@ import java.io.Serializable
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
-import org.apache.spark.sql._
-import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.sources.PrunedFilteredScan
 import org.apache.spark.sql.sources.TableScan
+import org.apache.spark.sql.sources._
 import scala.collection.immutable.{HashMap, Map}
 import org.apache.hadoop.hbase.client.{Result, Scan, HTable, HBaseAdmin}
 
@@ -82,11 +80,7 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
   val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
   val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
   val registerTableSchema = hbaseProps.getOrElse("sparksql_table_schema", sys.error("not valid schema"))
-  val rowRange = hbaseProps.getOrElse("row_range", "->")
-  //get star row and end row
-  val range = rowRange.split("->",-1)
-  val startRowKey = range(0).trim
-  val endRowKey = range(1).trim
+
 
   val tempHBaseFields = extractHBaseSchema(hbaseTableSchema) //do not use this, a temp field
   val registerTableFields = extractRegisterSchema(registerTableSchema)
@@ -138,7 +132,7 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
     StructType(fields)
   }
 
-  def tableSchemaFieldMapping( externalHBaseTable: Array[HBaseSchemaField],  registerTable : Array[RegisteredSchemaField]): Map[HBaseSchemaField, RegisteredSchemaField] = {
+  def tableSchemaFieldMapping(externalHBaseTable: Array[HBaseSchemaField],  registerTable : Array[RegisteredSchemaField]): Map[HBaseSchemaField, RegisteredSchemaField] = {
        if(externalHBaseTable.length != registerTable.length) sys.error("columns size not match in definition!")
        val rs = externalHBaseTable.zip(registerTable)
        rs.toMap
@@ -170,8 +164,6 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
     hbaseConf.set(TableInputFormat.SCAN_COLUMNS, queryColumns);
-    hbaseConf.set(TableInputFormat.SCAN_ROW_START, startRowKey);
-    hbaseConf.set(TableInputFormat.SCAN_ROW_STOP, endRowKey);
 
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
       hbaseConf,
@@ -179,7 +171,6 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
       classOf[org.apache.hadoop.hbase.io.ImmutableBytesWritable],
       classOf[org.apache.hadoop.hbase.client.Result]
     )
-
 
 
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {

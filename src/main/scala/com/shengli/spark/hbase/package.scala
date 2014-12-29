@@ -22,7 +22,7 @@ package object hbase {
   protected  val SPARK_SQL_TABLE_SCHEMA = Parameter("sparksql_table_schema")
   protected  val HBASE_TABLE_NAME = Parameter("hbase_table_name")
   protected  val HBASE_TABLE_SCHEMA = Parameter("hbase_table_schema")
-  protected  val ROW_RANGE = Parameter("row_range")
+
   /**
    * Adds a method, `hbaseTable`, to SQLContext that allows reading data stored in hbase table.
    */
@@ -33,7 +33,6 @@ package object hbase {
       params += ( HBASE_TABLE_NAME.name -> hbaseTableName)
       params += ( HBASE_TABLE_SCHEMA.name -> hbaseTableSchema)
       //get star row and end row
-      params += ( ROW_RANGE.name -> rowRange)
 
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
