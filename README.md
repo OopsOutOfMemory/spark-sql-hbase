@@ -238,7 +238,10 @@ You can simply do it with `ln -s ~/software/hbase/conf/hbase-site.xml ~/git_repo
 
 __2. Add hbase related libs into spark classpath__
 
-Below is how I start the spark shell:
+Below is how I start the spark shell:<br/>
+Add hbase related libs into spark classpath to make sure spark can access hbase with spark api first.
+<br/>
+Then:
 
 ```scala
 bin/spark-shell --master spark://192.168.2.100:7077 --jars /Users/shengli/software/hbase/lib/hbase-client-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-server-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-common-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/hbase-protocol-0.98.8-hadoop2.jar,/Users/shengli/software/hbase/lib/protobuf-java-2.5.0.jar,/Users/shengli/software/hbase/lib/htrace-core-2.04.jar,/Users/shengli/git_repos/spark-sql-hbase/target/scala-2.10/spark-sql-hbase_2.10-0.1.jar --driver-java-options "-Dsun.io.serialization.extendedDebugInfo=true"
