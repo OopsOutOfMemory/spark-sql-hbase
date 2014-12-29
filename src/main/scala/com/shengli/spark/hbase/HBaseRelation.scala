@@ -66,9 +66,9 @@ object Resolver extends  Serializable {
       |CREATE TEMPORARY TABLE hbase_people
       |USING com.shengli.spark.hbase
       |OPTIONS (
-      |  sparksql.table.schema   '(row_key string, name string, age int, job string)',
-      |  hbase.table.name    'people',
-      |  hbase.table.schema '(:key string, profile:name string, profile:age int, career:job string)'
+      |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
+      |   hbase_table_name     'people',
+      | hbase_table_schema '(:key , profile:name , profile:age , career:job )'
       |)""".stripMargin
  */
 case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
