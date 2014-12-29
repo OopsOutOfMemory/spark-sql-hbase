@@ -38,7 +38,7 @@ And we use `:key` represent the rowkey in hbase.
         |OPTIONS (
         |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
         |  hbase_table_name    'people',
-        |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)'
+        |  hbase_table_schema '(:key , profile:name , profile:age , career:job )'
         |)""".stripMargin
   
         
@@ -85,7 +85,7 @@ We only need start rowkey is `rowkey003` and end rowkey is `rowkey005`
        |OPTIONS (
        |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
        |  hbase_table_name    'people',
-       |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)',
+       |  hbase_table_schema '(:key , profile:name , profile:age , career:job )',
        |  row_range  'rowkey003->rowkey005'
        |)""".stripMargin
 ```
@@ -120,7 +120,7 @@ If you do common Scan, you just pass three parameters below:
 scala> import com.shengli.spark.hbase._
 import com.shengli.spark.hbase._
 
-scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)")
+scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name , profile:age , career:job )")
 ......
 14/12/27 02:30:55 INFO spark.SparkContext: Created broadcast 4 from newAPIHadoopRDD at HBaseRelation.scala:158
 hbaseSchema: org.apache.spark.sql.SchemaRDD = 
@@ -149,7 +149,7 @@ sqlContext.hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbase
 scala> import com.shengli.spark.hbase._
 import com.shengli.spark.hbase._
 
-scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)","rowkey002->rowkey004")
+scala> val hbaseSchema = sqlContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name , profile:age , career:job )","rowkey002->rowkey004")
 hbaseSchema: org.apache.spark.sql.SchemaRDD = 
 SchemaRDD[9] at RDD at SchemaRDD.scala:108
 == Query Plan ==

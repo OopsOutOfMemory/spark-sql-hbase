@@ -82,12 +82,22 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
   val startRowKey = range(0).trim
   val endRowKey = range(1).trim
 
-  val hbaseTableFields = extractHBaseSchema(hbaseTableSchema)
+  val tempHBaseFields = extractHBaseSchema(hbaseTableSchema) //do not use this, a temp field
   val registerTableFields = extractRegisterSchema(registerTableSchema)
-  val fieldsRelations = tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
-  val queryColumns =   getQueryTargetCloumns(hbaseTableFields)
+  val tempFieldRelation = tableSchemaFieldMapping(tempHBaseFields,registerTableFields)
 
+  val hbaseTableFields = feedTypes(tempFieldRelation)
+  val fieldsRelations =  tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
+  val queryColumns =  getQueryTargetCloumns(hbaseTableFields)
 
+  def  feedTypes( mapping: Map[HBaseSchemaField, RegisteredSchemaField]) :  Array[HBaseSchemaField] = {
+         val hbaseFields = mapping.map{
+           case (k,v) =>
+               val field = k.copy(fieldType=v.fieldType)
+               field
+        }
+        hbaseFields.toArray
+  }
 
   def isRowKey(field: HBaseSchemaField) : Boolean = {
     val cfColArray = field.fieldName.split(":",-1)
@@ -141,15 +151,11 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
          }
    }
 
-  //externalTableSchema '(:key string, f1:col1 string)'
+  //externalTableSchema '(:key , f1:col1 )'
   def extractHBaseSchema(externalTableSchema: String) : Array[HBaseSchemaField] = {
         val fieldsStr = externalTableSchema.trim.drop(1).dropRight(1)
         val fieldsArray = fieldsStr.split(",").map(_.trim)
-        fieldsArray.map{ fildString =>
-          val fieldsNameTypeArray = fildString.trim.split("\\s+",-1)
-          //note: the name of HBaseSchemaField is not splited, is like cf:col1
-          HBaseSchemaField(fieldsNameTypeArray(0), fieldsNameTypeArray(1))
-    }
+        fieldsArray.map(fildString => HBaseSchemaField(fildString,""))
   }
 
 
