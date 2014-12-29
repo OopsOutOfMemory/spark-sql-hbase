@@ -6,7 +6,12 @@ package com.shengli.spark.hbase
 import java.io.Serializable
 
 import org.apache.hadoop.fs.Path
+import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
+import org.apache.spark.sql._
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.Filter
+import org.apache.spark.sql.sources.PrunedFilteredScan
 import org.apache.spark.sql.sources.TableScan
 import scala.collection.immutable.{HashMap, Map}
 import org.apache.hadoop.hbase.client.{Result, Scan, HTable, HBaseAdmin}
@@ -18,6 +23,7 @@ import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+
 
 
 object Resolver extends  Serializable {
@@ -71,7 +77,7 @@ object Resolver extends  Serializable {
       | hbase_table_schema '(:key , profile:name , profile:age , career:job )'
       |)""".stripMargin
  */
-case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends TableScan with Serializable {
+case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends PrunedFilteredScan with Serializable {
 
   val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
   val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
@@ -159,9 +165,7 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
   }
 
 
-
-  // By making this a lazy val we keep the RDD around, amortizing the cost of locating splits.
-  lazy val buildScan = {
+  override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
 
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
@@ -175,6 +179,7 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
       classOf[org.apache.hadoop.hbase.io.ImmutableBytesWritable],
       classOf[org.apache.hadoop.hbase.client.Result]
     )
+
 
 
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
