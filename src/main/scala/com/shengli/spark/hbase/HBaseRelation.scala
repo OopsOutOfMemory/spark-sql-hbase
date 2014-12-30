@@ -21,6 +21,7 @@ import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import org.apache.spark.Logging
 
 
 
@@ -75,7 +76,7 @@ object Resolver extends  Serializable {
       | hbase_table_schema '(:key , profile:name , profile:age , career:job )'
       |)""".stripMargin
  */
-case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends PrunedFilteredScan with Serializable {
+case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends PrunedFilteredScan with Serializable with Logging{
 
   val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
   val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
@@ -164,7 +165,9 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
     hbaseConf.set(TableInputFormat.SCAN_COLUMNS, queryColumns);
-
+    logInfo("requriedColumns->"+requiredColumns)
+    requiredColumns.foreach(c=>logInfo(c))
+    filters.foreach(f=>logInfo(f.toString))
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
       hbaseConf,
       classOf[org.apache.hadoop.hbase.mapreduce.TableInputFormat],

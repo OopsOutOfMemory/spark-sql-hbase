@@ -9,7 +9,7 @@ import TestSQLContext._
 class HBaseSuite extends FunSuite {
 
   test("dsl test") {
-    val results = TestSQLContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key string, profile:name string, profile:age int, career:job string)").select('name).count.collect()
+    val results = TestSQLContext.hbaseTable("(row_key string, name string, age int, job string)","people","(:key , profile:name , profile:age , career:job )").select('name).count.collect()
     assert(results.size === 5)
   }
 
@@ -21,7 +21,7 @@ class HBaseSuite extends FunSuite {
       |OPTIONS (
       |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
       |  hbase_table_name    'people',
-      |  hbase_table_schema '(:key string, profile:name string, profile:age int, career:job string)'
+      |  hbase_table_schema '(:key , profile:name , profile:age , career:job )'
       |)""".stripMargin
 
     assert(sql("SELECT * FROM hbase_people").collect().size === 5)  )
