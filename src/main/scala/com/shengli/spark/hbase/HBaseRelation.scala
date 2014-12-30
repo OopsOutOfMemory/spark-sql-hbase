@@ -9,19 +9,22 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql._
 import org.apache.spark.sql.sources.PrunedFilteredScan
-import org.apache.spark.sql.sources.TableScan
 import org.apache.spark.sql.sources._
 import scala.collection.immutable.{HashMap, Map}
 import org.apache.hadoop.hbase.client.{Result, Scan, HTable, HBaseAdmin}
-
 import org.apache.spark.sql._
 import org.apache.spark.rdd.NewHadoopRDD
-import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HBaseConfiguration
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.Logging
+import org.apache.spark._
+import org.apache.hadoop.hbase.util.Bytes
+import java.io.{DataOutputStream, ByteArrayOutputStream}
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable
+import org.apache.hadoop.hbase.util.Base64
 
 
 
@@ -159,22 +162,31 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
         fieldsArray.map(fildString => HBaseSchemaField(fildString,""))
   }
 
-
+  def convertScanToString(scan: Scan): String = {
+    val out: ByteArrayOutputStream = new ByteArrayOutputStream
+    val dos: DataOutputStream = new DataOutputStream(out)
+    scan.write(dos)
+    Base64.encodeBytes(out.toByteArray)
+  }
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
 
     val hbaseConf = HBaseConfiguration.create()
     hbaseConf.set(TableInputFormat.INPUT_TABLE, hbaseTableName)
     hbaseConf.set(TableInputFormat.SCAN_COLUMNS, queryColumns);
-    logInfo("requriedColumns->"+requiredColumns)
-    requiredColumns.foreach(c=>logInfo(c))
-    filters.foreach(f=>logInfo(f.toString))
+
+    val filters = HBaseFilters.initialFilters(filters, fieldsRelations)
+
+    val scan = new Scan()
+    scan.setFilter(filters)
+    scan.setStartRow(Bytes.toBytes("rowkey002"))
+    scan.setStopRow(Bytes.toBytes("rowkey005"))
+
     val hbaseRdd = sqlContext.sparkContext.newAPIHadoopRDD(
       hbaseConf,
       classOf[org.apache.hadoop.hbase.mapreduce.TableInputFormat],
       classOf[org.apache.hadoop.hbase.io.ImmutableBytesWritable],
       classOf[org.apache.hadoop.hbase.client.Result]
     )
-
 
     val rs = hbaseRdd.map(tuple => tuple._2).map(result => {
       var values = new ArrayBuffer[Any]()
