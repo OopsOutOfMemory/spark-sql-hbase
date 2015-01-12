@@ -19,21 +19,19 @@ package object hbase {
    case class Parameter(name: String)
 
 
-  protected  val SPARK_SQL_TABLE_SCHEMA = Parameter("sparksql_table_schema")
-  protected  val HBASE_TABLE_NAME = Parameter("hbase_table_name")
-  protected  val HBASE_TABLE_SCHEMA = Parameter("hbase_table_schema")
+  protected  val SPARK_SQL_TABLE_SCHEMA = Parameter("sparksql.table.schema")
+  protected  val HBASE_TABLE_NAME = Parameter("hbase.table.name")
+  protected  val HBASE_TABLE_SCHEMA = Parameter("hbase.table.schema")
 
   /**
    * Adds a method, `hbaseTable`, to SQLContext that allows reading data stored in hbase table.
    */
   implicit class HBaseContext(sqlContext: SQLContext) {
-    def hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String, rowRange: String = "->") = {
+    def hbaseTable(sparksqlTableSchema: String, hbaseTableName: String, hbaseTableSchema: String) = {
       var params = new HashMap[String, String]
       params += ( SPARK_SQL_TABLE_SCHEMA.name -> sparksqlTableSchema)
       params += ( HBASE_TABLE_NAME.name -> hbaseTableName)
       params += ( HBASE_TABLE_SCHEMA.name -> hbaseTableSchema)
-      //get star row and end row
-
       sqlContext.baseRelationToSchemaRDD(HBaseRelation(params)(sqlContext))
     }
   }

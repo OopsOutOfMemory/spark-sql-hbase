@@ -70,21 +70,20 @@ object Resolver extends  Serializable {
 }
 
 /**
-   val hbaseDDL = s"""
-      |CREATE TEMPORARY TABLE hbase_people
-      |USING com.shengli.spark.hbase
-      |OPTIONS (
-      |  sparksql_table_schema   '(row_key string, name string, age int, job string)',
-      |   hbase_table_name     'people',
-      | hbase_table_schema '(:key , profile:name , profile:age , career:job )'
-      |)""".stripMargin
+  * val hbaseDDL = s"""
+  *   |CREATE TEMPORARY TABLE hbase_people
+  *   |USING com.shengli.spark.hbase
+  *   |OPTIONS (
+  *   |  `sparksql.table.schema`   '(row_key string, name string, age int, job string)',
+  *   |  `hbase.table.name`     'people',
+  *   | `hbase_table_schema` '(:key , profile:name , profile:age , career:job )'
+  *   |)""".stripMargin
  */
 case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transient val sqlContext: SQLContext) extends PrunedFilteredScan with Serializable with Logging{
 
-  val hbaseTableName =  hbaseProps.getOrElse("hbase_table_name", sys.error("not valid schema"))
-  val hbaseTableSchema =  hbaseProps.getOrElse("hbase_table_schema", sys.error("not valid schema"))
-  val registerTableSchema = hbaseProps.getOrElse("sparksql_table_schema", sys.error("not valid schema"))
-
+  val hbaseTableName =  hbaseProps.getOrElse("hbase.table.name", sys.error("not find hbase table name"))
+  val hbaseTableSchema =  hbaseProps.getOrElse("hbase.table.schema", sys.error("not find hbase table schema"))
+  val registerTableSchema = hbaseProps.getOrElse("sparksql.table.schema", sys.error("not find regiter schema"))
 
   val tempHBaseFields = extractHBaseSchema(hbaseTableSchema) //do not use this, a temp field
   val registerTableFields = extractRegisterSchema(registerTableSchema)
@@ -94,13 +93,13 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
   val fieldsRelations =  tableSchemaFieldMapping(hbaseTableFields,registerTableFields)
   val queryColumns =  getQueryTargetCloumns(hbaseTableFields)
 
-  def  feedTypes( mapping: Map[HBaseSchemaField, RegisteredSchemaField]) :  Array[HBaseSchemaField] = {
-         val hbaseFields = mapping.map{
-           case (k,v) =>
-               val field = k.copy(fieldType=v.fieldType)
-               field
+  def feedTypes( mapping: Map[HBaseSchemaField, RegisteredSchemaField]) :  Array[HBaseSchemaField] = {
+    val hbaseFields = mapping.map{
+      case (k,v) =>
+        val field = k.copy(fieldType=v.fieldType)
+          field
         }
-        hbaseFields.toArray
+    hbaseFields.toArray
   }
 
   def isRowKey(field: HBaseSchemaField) : Boolean = {
@@ -114,21 +113,21 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
   def getQueryTargetCloumns(hbaseTableFields: Array[HBaseSchemaField]): String = {
     var str = ArrayBuffer[String]()
     hbaseTableFields.foreach{ field=>
-         if(!isRowKey(field)) {
-           str +=  field.fieldName
-         }
+      if (!isRowKey(field)) {
+        str +=  field.fieldName
+      }
     }
     str.mkString(" ")
   }
   lazy val schema = {
     val fields = hbaseTableFields.map{ field=>
-        val name  = fieldsRelations.getOrElse(field, sys.error("table schema is not match the definition.")).fieldName
-        val relatedType =  field.fieldType match  {
-          case "string" =>
-            SchemaType(StringType,nullable = false)
-          case "int" =>
+      val name  = fieldsRelations.getOrElse(field, sys.error("table schema is not match the definition.")).fieldName
+      val relatedType =  field.fieldType match  {
+        case "string" =>
+          SchemaType(StringType,nullable = false)
+        case "int" =>
             SchemaType(IntegerType,nullable = false)
-          case "long" =>
+        case "long" =>
             SchemaType(LongType,nullable = false)
         }
         StructField(name,relatedType.dataType,relatedType.nullable)
@@ -168,6 +167,8 @@ case class HBaseRelation(@transient val hbaseProps: Map[String,String])(@transie
     scan.write(dos)
     Base64.encodeBytes(out.toByteArray)
   }
+
+
   override def buildScan(requiredColumns: Array[String], filters: Array[Filter]): RDD[Row] = {
 
     val hbaseConf = HBaseConfiguration.create()
