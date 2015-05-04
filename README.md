@@ -7,10 +7,9 @@
  
  It leverages the functionality of [Spark SQL](http://spark.apache.org/sql/) 1.2+ external datasource API .
 
-> 作为一个中国人，我还是写几句中文 ：）
+> 该项目仅供参考，学习之用，未经正式测试，并跟最新代码相比是 out of date 的。
 Spark1.2发布之后，Spark SQL支持了External Datasource API，我们才能方便的编写扩展来使Spark SQL能支持更多的外部数据源。
-鉴于国内用HBase的用户比较多，所以使Spark SQL支持查询HBase还是很有价值的，这也是我写这个Lib的原因。
-不过，一个人得力量远不如大家的力量，所以希望大家能多提Issues，多多Commit~ 先谢谢了：）
+
 
 
 ##Using SQL Resiger HBase Table
@@ -264,7 +263,3 @@ The below provides the mapping of the classes and their respective jars
 
 - https://support.pivotal.io/hc/en-us/articles/203025186-Hive-Query-from-Tableau-failed-with-error-Execution-Error-return-code-2-from-org-apache-hadoop-hive-ql-exec-mr-MapRedTask
 
-###Contact Me
-如果有任何疑问，可以通过以下方式联系我：
-- WeiBo: http://weibo.com/oopsoom
-- Blog: http://blog.csdn.net/oopsoom
