@@ -1,5 +1,6 @@
 #Spark SQL HBase Connector
- 
+
+##----------------Note: This Project is Deprecated ---------------- 
  
  _Spark SQL HBase Connector_ aim to query HBase Table by using Spark SQL.
  
